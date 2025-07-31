@@ -10,9 +10,26 @@
 
 ## Installation
 
-- Install with `npm install`
-- Run demo with `npm run dev`
-- Build with `npm run build`
+- Install with `pnpm install`
+- Run demo with `pnpm dev`
+- Build with `pnpm build`
+
+## Live Demo
+
+- **Main Demo**: [GitHub Pages](https://marcaumdesign.github.io/codrops-sdf-lensblur/)
+- **Iframe Version**: [GitHub Pages](https://marcaumdesign.github.io/codrops-sdf-lensblur/iframe.html)
+
+### Iframe Usage
+
+You can customize the iframe with URL parameters:
+
+- `var`: Shape variation (0-3)
+- `color`: Color in HEX format
+
+Examples:
+- `iframe.html?var=2&color=FF00FF` - Purple circle with magenta color
+- `iframe.html?var=1&color=00FF00` - Green circle
+- `iframe.html?var=3&color=D9CBEC` - Triangle with light purple
 
 ## Credits
 - [Three.js](https://threejs.org/) - WebGL Library
