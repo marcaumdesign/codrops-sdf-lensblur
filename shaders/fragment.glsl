@@ -3,6 +3,11 @@ varying vec2 v_texcoord;
 uniform vec2 u_mouse;
 uniform vec2 u_resolution;
 uniform float u_pixelRatio;
+uniform vec3 u_color;
+uniform vec3 u_bgColor;
+uniform bool u_useTransparent;
+uniform float u_blurIntensity;
+uniform int u_blurType;
 
 /* common constants */
 #ifndef PI
@@ -112,6 +117,39 @@ void main() {
         sdf = fill(sdf, 0.05, sdfCircle) * 1.4;
     }
     
-    vec3 color = vec3(sdf);
-    gl_FragColor = vec4(color.rgb, 1.0);
+    // Aplicar intensidade do blur
+    sdf = sdf * u_blurIntensity;
+    
+    // Aplicar tipo de transição
+    float alpha;
+    if (u_blurType == 0) {
+        // Linear
+        alpha = clamp(sdf, 0.0, 1.0);
+    } else if (u_blurType == 1) {
+        // Suave (smoothstep)
+        alpha = smoothstep(0.0, 1.0, clamp(sdf, 0.0, 1.0));
+    } else if (u_blurType == 2) {
+        // Exponencial
+        alpha = 1.0 - exp(-sdf);
+    } else {
+        // Padrão
+        alpha = clamp(sdf, 0.0, 1.0);
+    }
+    
+    // Mistura com a cor de fundo para criar o efeito de blur
+    vec3 color;
+    
+    if (u_useTransparent) {
+        // Para fundo transparente, usa apenas a cor do objeto
+        color = u_color;
+    } else {
+        // Para fundo sólido, sempre mostra o fundo
+        // O alpha controla apenas a intensidade da cor do objeto sobre o fundo
+        color = mix(u_bgColor, u_color, alpha);
+    }
+    
+    // Para fundo sólido, sempre usar alpha = 1 para garantir que o fundo seja visível
+    float finalAlpha = u_useTransparent ? alpha : 1.0;
+    
+    gl_FragColor = vec4(color, finalAlpha);
 }
