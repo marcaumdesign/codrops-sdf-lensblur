@@ -3,6 +3,9 @@ varying vec2 v_texcoord;
 uniform vec2 u_mouse;
 uniform vec2 u_resolution;
 uniform float u_pixelRatio;
+uniform vec3 u_color;
+uniform vec3 u_bgColor;
+
 
 /* common constants */
 #ifndef PI
@@ -112,6 +115,9 @@ void main() {
         sdf = fill(sdf, 0.05, sdfCircle) * 1.4;
     }
     
-    vec3 color = vec3(sdf);
-    gl_FragColor = vec4(color.rgb, 1.0);
-}
+    // Mistura com a cor de fundo (branco) para evitar halo cinza
+    float alpha = clamp(sdf, 0.0, 1.0);
+    vec3 color = mix(u_bgColor, u_color, alpha);
+    
+    gl_FragColor = vec4(color, alpha);
+} 
