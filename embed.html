@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SDF Lens Blur Embed</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import './css/base.css';
+        import * as THREE from 'three';
+        import fragmentShader from './shaders/fragment.glsl';
+
+        // Função para converter hex para RGB normalizado
+        function hexToRgb(hex) {
+            if (!hex) return null;
+            // Remove # se presente
+            hex = hex.replace('#', '');
+            
+            const result = /^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16) / 255,
+                g: parseInt(result[2], 16) / 255,
+                b: parseInt(result[3], 16) / 255
+            } : null;
+        }
+
+        // Extrair parâmetros da URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const variation = parseInt(urlParams.get('var')) || 0;
+        const objectColorHex = urlParams.get('cor') || urlParams.get('object') || 'ff8a33';
+        const bgColorHex = urlParams.get('fundo') || urlParams.get('bg') || 'ffffff';
+        const blurIntensity = parseFloat(urlParams.get('blur')) || 1.0;
+        const blurType = parseInt(urlParams.get('tipo')) || parseInt(urlParams.get('type')) || 0;
+        const useTransparent = urlParams.get('transparente') === 'true' || urlParams.get('transparent') === 'true';
+
+        // Converter cores
+        const objectColor = hexToRgb(objectColorHex) || { r: 1.0, g: 0.5, b: 0.2 };
+        const bgColor = hexToRgb(bgColorHex) || { r: 1.0, g: 1.0, b: 1.0 };
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        const vMouse = new THREE.Vector2();
+        const vMouseDamp = new THREE.Vector2();
+        const vResolution = new THREE.Vector2();
+
+        // Viewport setup
+        let w, h = 1;
+
+        // Camera setup
+        const aspect = w / h;
+        const camera = new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.1, 1000);
+
+        const renderer = new THREE.WebGLRenderer({ 
+            alpha: true,
+            premultipliedAlpha: false
+        });
+        renderer.setClearColor(0xffffff, useTransparent ? 0 : 1);
+        document.body.appendChild(renderer.domElement);
+
+        // Mouse tracking
+        const onPointerMove = (e) => { vMouse.set(e.pageX, e.pageY) }
+        document.addEventListener('mousemove', onPointerMove);
+        document.addEventListener('pointermove', onPointerMove);
+        document.body.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+
+        // Geometry
+        const geo = new THREE.PlaneGeometry(1, 1);
+
+        // Shader material
+        const mat = new THREE.ShaderMaterial({
+            vertexShader: /* glsl */`
+                varying vec2 v_texcoord;
+                void main() {
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    v_texcoord = uv;
+                }`,
+            fragmentShader,
+            uniforms: {
+                u_mouse: { value: vMouseDamp },
+                u_resolution: { value: vResolution },
+                u_pixelRatio: { value: 2 },
+                u_color: { value: new THREE.Vector3(objectColor.r, objectColor.g, objectColor.b) },
+                u_bgColor: { value: new THREE.Vector3(bgColor.r, bgColor.g, bgColor.b) },
+                u_useTransparent: { value: useTransparent },
+                u_blurIntensity: { value: blurIntensity },
+                u_blurType: { value: blurType }
+            },
+            defines: {
+                VAR: variation
+            },
+            transparent: true
+        });
+
+        // Mesh
+        const quad = new THREE.Mesh(geo, mat);
+        scene.add(quad);
+        camera.position.z = 1;
+
+        // Animation loop
+        let time, lastTime = 0;
+        const update = () => {
+            time = performance.now() * 0.001;
+            const dt = time - lastTime;
+            lastTime = time;
+
+            // Mouse damping
+            for (const k in vMouse) {
+                if (k == 'x' || k == 'y') vMouseDamp[k] = THREE.MathUtils.damp(vMouseDamp[k], vMouse[k], 8, dt);
+            }
+
+            requestAnimationFrame(update);
+            renderer.render(scene, camera);
+        };
+        update();
+
+        // Resize handler
+        const resize = () => {
+            w = window.innerWidth;
+            h = window.innerHeight;
+            const dpr = Math.min(window.devicePixelRatio, 2);
+
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(dpr);
+
+            camera.left = -w / 2;
+            camera.right = w / 2;
+            camera.top = h / 2;
+            camera.bottom = -h / 2;
+            camera.updateProjectionMatrix();
+
+            quad.scale.set(w, h, 1);
+            vResolution.set(w, h).multiplyScalar(dpr);
+            mat.uniforms.u_pixelRatio.value = dpr;
+        };
+        resize();
+        window.addEventListener('resize', resize);
+    </script>
+</body>
+</html>
